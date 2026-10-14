@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tabata Timer</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --text-color: #f8fafc;
+            --accent-work: #3b82f6;
+            --accent-rest: #10b981;
+            --accent-prep: #f59e0b;
+            --btn-text: #ffffff;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            padding: 24px;
+            transition: background-color 0.3s ease;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 10px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            letter-spacing: 0.05em;
+            opacity: 0.9;
+        }
+
+        .main-container {
+            width: 100%;
+            max-width: 480px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 24px;
+            flex: 1;
+            justify-content: center;
+        }
+
+        /* ステータス表示 */
+        .status-badge {
+            font-size: 1.8rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            padding: 8px 24px;
+            border-radius: 50px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        /* タイム表示部 */
+        .timer-display {
+            font-size: 6rem;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+            letter-spacing: -0.03em;
+        }
+
+        /* セット数・全体進捗 */
+        .progress-info {
+            font-size: 1.3rem;
+            opacity: 0.8;
+            font-weight: 500;
+        }
+
+        /* 大きなコントロールボタン */
+        .controls {
+            display: flex;
+            gap: 16px;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 24px;
+            font-size: 1.5rem;
+            font-weight: 700;
+            border: none;
+            border-radius: 16px;
+            cursor: pointer;
+            color: var(--btn-text);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            transition: transform 0.1s ease, opacity 0.2s ease;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background-color: #3b82f6;
+        }
+
+        .btn-secondary {
+            background-color: #475569;
+        }
+
+        .btn-danger {
+            background-color: #ef4444;
+        }
+
+        /* 設定エリア */
+        .settings-card {
+            width: 100%;
+            max-width: 480px;
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .settings-card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 16px;
+            opacity: 0.9;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 8px;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .setting-item label {
+            font-size: 1rem;
+            opacity: 0.9;
+        }
+
+        .time-inputs {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .time-input-group {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .setting-item select, .setting-item input {
+            background: #0f172a;
+            color: white;
+            border: 1px solid #475569;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 1rem;
+            width: 65px;
+            text-align: center;
+        }
+
+        .setting-item input.sets-input {
+            width: 90px;
+        }
+
+        .setting-item select.sound-select {
+            width: 130px;
+        }
+
+        .time-unit {
+            font-size: 0.85rem;
+            opacity: 0.7;
+        }
+
+        /* 隠し要素 */
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>TABATA TIMER</h1>
+    </header>
+
+    <div class="main-container" id="mainView">
+        <div class="status-badge" id="statusBadge">準備中</div>
+        <div class="timer-display" id="timerDisplay">00:10</div>
+        <div class="progress-info" id="progressInfo">セット 1 / 8</div>
+
+        <div class="controls">
+            <button class="btn btn-secondary" id="btnSettings" onclick="toggleSettings()">設定</button>
+            <button class="btn btn-primary" id="btnMainAction" onclick="handleMainAction()">スタート</button>
+        </div>
+    </div>
+
+    <!-- 設定画面 -->
+    <div class="settings-card hidden" id="settingsView">
+        <h2>タイマー設定</h2>
+        
+        <div class="setting-item">
+            <label>準備</label>
+            <div class="time-inputs">
+                <div class="time-input-group">
+                    <input type="number" id="prepMin" value="0" min="0" max="10"><span class="time-unit">分</span>
+                </div>
+                <div class="time-input-group">
+                    <input type="number" id="prepSec" value="10" min="0" max="59"><span class="time-unit">秒</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <label>運動</label>
+            <div class="time-inputs">
+                <div class="time-input-group">
+                    <input type="number" id="workMin" value="0" min="0" max="10"><span class="time-unit">分</span>
+                </div>
+                <div class="time-input-group">
+                    <input type="number" id="workSec" value="20" min="0" max="59"><span class="time-unit">秒</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <label>休憩</label>
+            <div class="time-inputs">
+                <div class="time-input-group">
+                    <input type="number" id="restMin" value="0" min="0" max="10"><span class="time-unit">分</span>
+                </div>
+                <div class="time-input-group">
+                    <input type="number" id="restSec" value="10" min="0" max="59"><span class="time-unit">秒</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <label>セット数</label>
+            <input type="number" class="sets-input" id="inputSets" value="8" min="1" max="99">
+        </div>
+
+        <div class="setting-item">
+            <label>サウンド効果</label>
+            <select class="sound-select" id="selectSound" onchange="previewSound()">
+                <option value="beep">電子音 (高)</option>
+                <option value="pop">ポップ音</option>
+                <option value="chime">チャイム風</option>
+                <option value="none">サイレント</option>
+            </select>
+        </div>
+
+        <button class="btn btn-primary" style="width: 100%; margin-top: 16px;" onclick="saveSettings()">設定を保存して閉じる</button>
+    </div>
+
+    <script>
+        // Audio Context (Web Audio API for zero-file dependency)
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playSound(type) {
+            const soundType = document.getElementById('selectSound').value;
+            if (soundType === 'none') return;
+            
+            initAudio();
+            if (!audioCtx) return;
+
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (soundType === 'beep') {
+                if (type === 'start') {
+                    osc.frequency.setValueAtTime(880, now);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'countdown') {
+                    osc.frequency.setValueAtTime(440, now);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+                    osc.start(now);
+                    osc.stop(now + 0.15);
+                } else if (type === 'change') {
+                    osc.frequency.setValueAtTime(587.33, now);
+                    osc.frequency.setValueAtTime(880, now + 0.1);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                } else if (type === 'finish') {
+                    [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.connect(g);
+                        g.connect(audioCtx.destination);
+                        o.frequency.setValueAtTime(freq, now + i * 0.12);
+                        g.gain.setValueAtTime(0.3, now + i * 0.12);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + i * 0.12 + 0.3);
+                        o.start(now + i * 0.12);
+                        o.stop(now + i * 0.12 + 0.3);
+                    });
+                }
+            } else if (soundType === 'pop') {
+                if (type === 'countdown') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(300, now);
+                    osc.frequency.exponentialRampToValueAtTime(100, now + 0.1);
+                    gain.gain.setValueAtTime(0.3, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } else {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, now);
+                    osc.frequency.exponentialRampToValueAtTime(200, now + 0.2);
+                    gain.gain.setValueAtTime(0.4, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+                    osc.start(now);
+                    osc.stop(now + 0.2);
+                }
+            } else if (soundType === 'chime') {
+                if (type === 'change' || type === 'start') {
+                    [523.25, 783.99].forEach((freq) => {
+                        const o = audioCtx.createOscillator();
+                        const g = audioCtx.createGain();
+                        o.type = 'sine';
+                        o.connect(g);
+                        g.connect(audioCtx.destination);
+                        o.frequency.setValueAtTime(freq, now);
+                        g.gain.setValueAtTime(0.2, now);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+                        o.start(now);
+                        o.stop(now + 0.8);
+                    });
+                } else {
+                    osc.frequency.setValueAtTime(440, now);
+                    gain.gain.setValueAtTime(0.2, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                }
+            }
+        }
+
+        function previewSound() {
+            playSound('change');
+        }
+
+        // Wake Lock API
+        let wakeLock = null;
+        async function requestWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    wakeLock = await navigator.wakeLock.request('screen');
+                }
+            } catch (err) {
+                console.log(err);
+            }
+        }
+        function releaseWakeLock() {
+            if (wakeLock !== null) {
+                wakeLock.release().then(() => {
+                    wakeLock = null;
+                });
+            }
+        }
+
+        // デフォルト設定
+        let config = {
+            prep: 10,
+            work: 20,
+            rest: 10,
+            sets: 8,
+            sound: 'beep'
+        };
+
+        // ローカルストレージから設定を読み込み
+        function loadSettingsFromStorage() {
+            const saved = localStorage.getItem('tabata_config_v2');
+            if (saved) {
+                try {
+                    config = JSON.parse(saved);
+                } catch(e) {}
+            }
+            // フォームに反映
+            document.getElementById('prepMin').value = Math.floor(config.prep / 60);
+            document.getElementById('prepSec').value = config.prep % 60;
+            document.getElementById('workMin').value = Math.floor(config.work / 60);
+            document.getElementById('workSec').value = config.work % 60;
+            document.getElementById('restMin').value = Math.floor(config.rest / 60);
+            document.getElementById('restSec').value = config.rest % 60;
+            document.getElementById('inputSets').value = config.sets;
+            document.getElementById('selectSound').value = config.sound || 'beep';
+        }
+
+        function saveSettingsToStorage() {
+            const prepM = parseInt(document.getElementById('prepMin').value) || 0;
+            const prepS = parseInt(document.getElementById('prepSec').value) || 0;
+            const workM = parseInt(document.getElementById('workMin').value) || 0;
+            const workS = parseInt(document.getElementById('workSec').value) || 20;
+            const restM = parseInt(document.getElementById('restMin').value) || 0;
+            const restS = parseInt(document.getElementById('restSec').value) || 10;
+
+            config.prep = (prepM * 60) + prepS;
+            config.work = (workM * 60) + workS;
+            config.rest = (restM * 60) + restS;
+            config.sets = parseInt(document.getElementById('inputSets').value) || 8;
+            config.sound = document.getElementById('selectSound').value;
+
+            localStorage.setItem('tabata_config_v2', JSON.stringify(config));
+        }
+
+        let currentState = 'IDLE'; // IDLE, RUNNING, PAUSED, FINISHED
+        let subState = 'PREP'; // PREP, WORK, REST
+        let currentSet = 1;
+        let timeLeft = 0;
+        let timerInterval = null;
+        let nextTargetTime = 0;
+
+        const statusBadge = document.getElementById('statusBadge');
+        const timerDisplay = document.getElementById('timerDisplay');
+        const progressInfo = document.getElementById('progressInfo');
+        const btnMainAction = document.getElementById('btnMainAction');
+        const btnSettings = document.getElementById('btnSettings');
+        const settingsView = document.getElementById('settingsView');
+        const mainView = document.getElementById('mainView');
+
+        function formatTime(seconds) {
+            const m = Math.floor(seconds / 60);
+            const s = seconds % 60;
+            return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function toggleSettings() {
+            if (settingsView.classList.contains('hidden')) {
+                // 設定画面を開く
+                if (currentState === 'RUNNING') {
+                    pauseTimer();
+                }
+                settingsView.classList.remove('hidden');
+                mainView.classList.add('hidden');
+                btnSettings.textContent = '戻る';
+            } else {
+                // 設定を保存してメインに戻る
+                saveSettingsToStorage();
+                settingsView.classList.add('hidden');
+                mainView.classList.remove('hidden');
+                btnSettings.textContent = '設定';
+                resetTimer();
+            }
+        }
+
+        function saveSettings() {
+            toggleSettings();
+        }
+
+        function resetTimer() {
+            stopTimer();
+            releaseWakeLock();
+            currentState = 'IDLE';
+            currentSet = 1;
+            
+            if (config.prep > 0) {
+                subState = 'PREP';
+                timeLeft = config.prep;
+                statusBadge.textContent = '準備中';
+                statusBadge.style.color = 'var(--accent-prep)';
+                document.body.style.backgroundColor = '#18120b';
+            } else {
+                subState = 'WORK';
+                timeLeft = config.work;
+                statusBadge.textContent = '運動中';
+                statusBadge.style.color = 'var(--accent-work)';
+                document.body.style.backgroundColor = '#0c192c';
+            }
+            
+            timerDisplay.textContent = formatTime(timeLeft);
+            progressInfo.textContent = `セット ${currentSet} / ${config.sets}`;
+            btnMainAction.textContent = 'スタート';
+            btnMainAction.className = 'btn btn-primary';
+            btnSettings.style.display = 'block';
+        }
+
+        function handleMainAction() {
+            initAudio();
+            if (currentState === 'IDLE' || currentState === 'FINISHED') {
+                resetTimer();
+                startTimer();
+            } else if (currentState === 'PAUSED') {
+                resumeTimer();
+            } else {
+                pauseTimer();
+            }
+        }
+
+        function startTimer() {
+            currentState = 'RUNNING';
+            if (subState === 'PREP' && config.prep > 0) {
+                timeLeft = config.prep;
+            } else if (subState === 'WORK') {
+                timeLeft = config.work;
+            } else if (subState === 'REST') {
+                timeLeft = config.rest;
+            }
+            requestWakeLock();
+            playSound('start');
+            runInterval();
+        }
+
+        function pauseTimer() {
+            stopTimer();
+            releaseWakeLock();
+            currentState = 'PAUSED';
+            statusBadge.textContent = '一時停止';
+            statusBadge.style.color = '#f8fafc';
+            btnMainAction.textContent = '再開';
+            btnMainAction.className = 'btn btn-primary';
+            btnSettings.style.display = 'block';
+        }
+
+        function resumeTimer() {
+            currentState = 'RUNNING';
+            requestWakeLock();
+            runInterval();
+        }
+
+        function runInterval() {
+            btnSettings.style.display = 'none';
+            btnMainAction.textContent = '一時停止';
+            btnMainAction.className = 'btn btn-danger';
+
+            updateDisplayStyles();
+
+            // 正確な残り時間を計算するため、現在のtimeLeftを維持してターゲットを設定
+            nextTargetTime = Date.now() + timeLeft * 1000;
+
+            stopTimer();
+            timerInterval = setInterval(() => {
+                const now = Date.now();
+                const remainingMs = nextTargetTime - now;
+                timeLeft = Math.ceil(remainingMs / 1000);
+
+                if (timeLeft <= 0) {
+                    transitionNextState();
+                } else {
+                    timerDisplay.textContent = formatTime(timeLeft);
+                    if (timeLeft <= 3) {
+                        playSound('countdown');
+                    }
+                }
+            }, 100);
+        }
+
+        function updateDisplayStyles() {
+            if (subState === 'PREP') {
+                statusBadge.textContent = '準備中';
+                statusBadge.style.color = 'var(--accent-prep)';
+                document.body.style.backgroundColor = '#18120b';
+            } else if (subState === 'WORK') {
+                statusBadge.textContent = '運動中！';
+                statusBadge.style.color = 'var(--accent-work)';
+                document.body.style.backgroundColor = '#0f2744';
+            } else if (subState === 'REST') {
+                statusBadge.textContent = '休憩中';
+                statusBadge.style.color = 'var(--accent-rest)';
+                document.body.style.backgroundColor = '#06281e';
+            }
+            progressInfo.textContent = `セット ${currentSet} / ${config.sets}`;
+            timerDisplay.textContent = formatTime(timeLeft > 0 ? timeLeft : 0);
+        }
+
+        function transitionNextState() {
+            stopTimer();
+
+            if (subState === 'PREP') {
+                subState = 'WORK';
+                timeLeft = config.work;
+                playSound('change');
+                updateDisplayStyles();
+                nextTargetTime = Date.now() + timeLeft * 1000;
+                runInterval();
+            } else if (subState === 'WORK') {
+                if (currentSet >= config.sets) {
+                    finishWorkout();
+                    return;
+                }
+                subState = 'REST';
+                timeLeft = config.rest;
+                playSound('change');
+                updateDisplayStyles();
+                nextTargetTime = Date.now() + timeLeft * 1000;
+                runInterval();
+            } else if (subState === 'REST') {
+                currentSet++;
+                subState = 'WORK';
+                timeLeft = config.work;
+                playSound('change');
+                updateDisplayStyles();
+                nextTargetTime = Date.now() + timeLeft * 1000;
+                runInterval();
+            }
+        }
+
+        function finishWorkout() {
+            stopTimer();
+            releaseWakeLock();
+            currentState = 'FINISHED';
+            statusBadge.textContent = '完了！お疲れ様でした';
+            statusBadge.style.color = '#f59e0b';
+            document.body.style.backgroundColor = '#1e1b18';
+            timerDisplay.textContent = formatTime(0);
+            progressInfo.textContent = `全 ${config.sets} セット達成`;
+            btnMainAction.textContent = 'もう一度やる';
+            btnMainAction.className = 'btn btn-primary';
+            btnSettings.style.display = 'block';
+            playSound('finish');
+        }
+
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+
+        // 起動時にストレージから設定を読み込んで初期化
+        loadSettingsFromStorage();
+        resetTimer();
+    </script>
+</body>
+</html>
