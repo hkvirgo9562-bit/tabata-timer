@@ -369,7 +369,7 @@
 
         // ローカルストレージから設定読み込み
         function loadSettingsFromStorage() {
-            const saved = localStorage.getItem('tabata_config_v3');
+            const saved = localStorage.getItem('tabata_config_v4');
             if (saved) {
                 try {
                     config = JSON.parse(saved);
@@ -390,20 +390,20 @@
 
         // ローカルストレージへ設定保存
         function saveSettingsToStorage() {
-            const prepM = parseInt(document.getElementById('prepMin').value) || 0;
-            const prepS = parseInt(document.getElementById('prepSec').value) || 0;
-            const workM = parseInt(document.getElementById('workMin').value) || 0;
-            const workS = parseInt(document.getElementById('workSec').value) || 20;
-            const restM = parseInt(document.getElementById('restMin').value) || 0;
-            const restS = parseInt(document.getElementById('restSec').value) || 10;
+            const prepM = parseInt(document.getElementById('prepMin').value);
+            const prepS = parseInt(document.getElementById('prepSec').value);
+            const workM = parseInt(document.getElementById('workMin').value);
+            const workS = parseInt(document.getElementById('workSec').value);
+            const restM = parseInt(document.getElementById('restMin').value);
+            const restS = parseInt(document.getElementById('restSec').value);
 
-            config.prep = (prepM * 60) + prepS;
-            config.work = (workM * 60) + workS;
-            config.rest = (restM * 60) + restS;
+            config.prep = ((isNaN(prepM) ? 0 : prepM) * 60) + (isNaN(prepS) ? 0 : prepS);
+            config.work = ((isNaN(workM) ? 0 : workM) * 60) + (isNaN(workS) ? 20 : workS);
+            config.rest = ((isNaN(restM) ? 0 : restM) * 60) + (isNaN(restS) ? 10 : restS);
             config.sets = parseInt(document.getElementById('inputSets').value) || 8;
             config.sound = document.getElementById('selectSound').value;
 
-            localStorage.setItem('tabata_config_v3', JSON.stringify(config));
+            localStorage.setItem('tabata_config_v4', JSON.stringify(config));
             resetTimer();
         }
 
@@ -561,7 +561,7 @@
             settingsModal.classList.remove('active');
         });
 
-        // モーダルの外側タップで保存して閉じる
+        // モダールの外側タップで保存して閉じる
         settingsModal.addEventListener('click', (e) => {
             if (e.target === settingsModal) {
                 saveSettingsToStorage();
