@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TABATA TIMER</title>
+    <title>MULTI TABATA TIMER</title>
     <style>
         :root {
             --bg-color: #0f0f11;
@@ -18,6 +18,7 @@
             --btn-primary-hover: #2563eb;
             --btn-secondary: #27272a;
             --btn-secondary-hover: #3f3f46;
+            --danger: #ef4444;
         }
 
         * {
@@ -34,24 +35,123 @@
             min-height: 100vh;
             display: flex;
             flex-direction: column;
-            justify-content: space-between;
             align-items: center;
             padding: 24px 16px;
             transition: background-color 0.5s ease;
             overflow-x: hidden;
         }
 
-        .container {
+        .view {
             width: 100%;
             max-width: 480px;
-            display: flex;
+            display: none;
             flex-direction: column;
-            align-items: center;
             flex: 1;
-            justify-content: center;
         }
 
-        /* ステータスバッジ */
+        .view.active {
+            display: flex;
+        }
+
+        .list-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .app-title {
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+
+        .btn-add {
+            background-color: var(--btn-primary);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .timer-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .timer-card {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            border: 1px solid #27272a;
+            transition: border-color 0.2s;
+        }
+
+        .timer-card:hover {
+            border-color: var(--btn-primary);
+        }
+
+        .timer-card-info h3 {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .timer-card-info p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .timer-card-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .icon-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 8px;
+        }
+        .icon-btn:hover {
+            color: var(--text-color);
+        }
+        .icon-btn.delete:hover {
+            color: var(--danger);
+        }
+
+        .timer-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 100%;
+        }
+
+        .back-btn {
+            align-self: flex-start;
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1rem;
+            cursor: pointer;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
         .status-badge {
             font-size: 1.5rem;
             font-weight: 700;
@@ -63,7 +163,6 @@
             transition: color 0.3s ease;
         }
 
-        /* タイマー表示 */
         .timer-display {
             font-size: 5.5rem;
             font-weight: 800;
@@ -73,7 +172,6 @@
             line-height: 1;
         }
 
-        /* セット数・フェーズ情報 */
         .info-text {
             font-size: 1.25rem;
             color: var(--text-secondary);
@@ -81,7 +179,6 @@
             font-variant-numeric: tabular-nums;
         }
 
-        /* コントロールボタン群 */
         .controls {
             display: flex;
             gap: 16px;
@@ -120,7 +217,6 @@
             background-color: var(--btn-primary-hover);
         }
 
-        /* 設定モーダル */
         .modal {
             position: fixed;
             top: 0;
@@ -151,7 +247,7 @@
             padding: 24px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 16px;
             max-height: 90vh;
             overflow-y: auto;
         }
@@ -165,11 +261,11 @@
         .setting-group {
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 6px;
         }
 
         .setting-label {
-            font-size: 0.9rem;
+            font-size: 0.85rem;
             color: var(--text-secondary);
         }
 
@@ -179,7 +275,7 @@
             gap: 8px;
         }
 
-        .time-inputs input, .setting-group select {
+        .time-inputs input, .setting-group select, .setting-group input[type="text"] {
             flex: 1;
             background: var(--bg-color);
             border: 1px solid #3f3f46;
@@ -189,43 +285,74 @@
             border-radius: 10px;
             text-align: center;
         }
+        .setting-group input[type="text"] {
+            text-align: left;
+        }
 
         .time-inputs span {
             font-size: 0.9rem;
             color: var(--text-secondary);
         }
 
-        .modal-close-btn {
-            background: var(--btn-primary);
-            color: white;
-            border: none;
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            margin-top: 8px;
+        }
+
+        .modal-btn {
+            flex: 1;
             padding: 14px;
             border-radius: 12px;
             font-size: 1rem;
             font-weight: 600;
+            border: none;
             cursor: pointer;
-            margin-top: 8px;
+        }
+        .modal-btn.save {
+            background: var(--btn-primary);
+            color: white;
+        }
+        .modal-btn.cancel {
+            background: var(--btn-secondary);
+            color: var(--text-color);
         }
     </style>
 </head>
 <body>
 
-    <div class="container">
-        <div id="statusBadge" class="status-badge" style="color: var(--accent-prep);">準備中</div>
-        <div id="timerDisplay" class="timer-display">00:10</div>
-        <div id="infoText" class="info-text">セット 1 / 8</div>
+    <div id="listView" class="view active">
+        <div class="list-header">
+            <h1 class="app-title">タバタタイマー一覧</h1>
+            <button id="btnAddTimer" class="btn-add">＋ 新規作成</button>
+        </div>
+        <div id="timerList" class="timer-list"></div>
+    </div>
 
-        <div class="controls">
-            <button id="btnSettings" class="btn btn-secondary-action">設定</button>
-            <button id="btnAction" class="btn btn-primary-action">スタート</button>
+    <div id="timerView" class="view">
+        <button id="btnBackToList" class="back-btn">← 一覧に戻る</button>
+        
+        <div class="timer-container">
+            <div id="statusBadge" class="status-badge" style="color: var(--accent-prep);">準備中</div>
+            <div id="timerDisplay" class="timer-display">00:10</div>
+            <div id="infoText" class="info-text">セット 1 / 8</div>
+
+            <div class="controls">
+                <button id="btnSettings" class="btn btn-secondary-action">設定</button>
+                <button id="btnAction" class="btn btn-primary-action">スタート</button>
+            </div>
         </div>
     </div>
 
-    <!-- 設定モーダル -->
     <div id="settingsModal" class="modal">
         <div class="modal-content">
-            <div class="modal-title">タイマー設定</div>
+            <div id="modalTitle" class="modal-title">タイマー設定</div>
             
+            <div class="setting-group">
+                <span class="setting-label">メニュー名</span>
+                <input type="text" id="inputTitle" value="スタンダードタバタ">
+            </div>
+
             <div class="setting-group">
                 <span class="setting-label">準備時間 (Prep)</span>
                 <div class="time-inputs">
@@ -258,45 +385,160 @@
             <div class="setting-group">
                 <span class="setting-label">サウンド</span>
                 <select id="selectSound">
-                    <option value="beep">電子音 (ビープ)</option>
-                    <option value="soft">ソフト音</option>
-                    <option value="none">サイレント (鳴らさない)</option>
+                    <option value="beep">01</option>
+                    <option value="soft">02</option>
+                    <option value="metal">03</option>
+                    <option value="hit">04</option>
+                    <option value="none">無音</option>
                 </select>
             </div>
 
-            <button id="modalCloseBtn" class="modal-close-btn">保存して閉じる</button>
+            <div class="setting-group">
+                <span class="setting-label">ボリューム (音量: <span id="volVal">50</span>%)</span>
+                <input type="range" id="inputVolume" min="0" max="100" value="50" style="accent-color: var(--btn-primary);">
+            </div>
+
+            <div class="modal-actions">
+                <button id="modalCancelBtn" class="modal-btn cancel">キャンセル</button>
+                <button id="modalSaveBtn" class="modal-btn save">保存</button>
+            </div>
         </div>
     </div>
 
     <script>
-        // 設定値のデフォルト
-        let config = {
-            prep: 10,
-            work: 20,
-            rest: 10,
-            sets: 8,
-            sound: 'beep'
-        };
+        const defaultTimers = [
+            {
+                id: 'default_1',
+                title: 'タバタタイマー01',
+                prep: 10,
+                work: 20,
+                rest: 10,
+                sets: 8,
+                sound: 'metal',
+                volume: 50
+            }
+        ];
 
-        // アプリの状態
-        let currentState = 'IDLE'; // IDLE, RUNNING, PAUSED, FINISHED
-        let subState = 'PREP';     // PREP, WORK, REST
+        let timers = [];
+        let currentTimerId = null;
+        let activeConfig = null;
+
+        let currentState = 'IDLE'; 
+        let subState = 'PREP';     
         let currentSet = 1;
-        let timeLeft = config.prep;
+        let timeLeft = 10;
         let timerInterval = null;
         let wakeLock = null;
         let audioCtx = null;
 
-        // DOM要素
+        const listView = document.getElementById('listView');
+        const timerView = document.getElementById('timerView');
+        const timerListEl = document.getElementById('timerList');
+        const btnAddTimer = document.getElementById('btnAddTimer');
+        const btnBackToList = document.getElementById('btnBackToList');
+
         const statusBadge = document.getElementById('statusBadge');
         const timerDisplay = document.getElementById('timerDisplay');
         const infoText = document.getElementById('infoText');
         const btnAction = document.getElementById('btnAction');
         const btnSettings = document.getElementById('btnSettings');
-        const settingsModal = document.getElementById('settingsModal');
-        const modalCloseBtn = document.getElementById('modalCloseBtn');
 
-        // AudioContextの初期化
+        const settingsModal = document.getElementById('settingsModal');
+        const modalTitle = document.getElementById('modalTitle');
+        const inputTitle = document.getElementById('inputTitle');
+        const prepMin = document.getElementById('prepMin');
+        const prepSec = document.getElementById('prepSec');
+        const workMin = document.getElementById('workMin');
+        const workSec = document.getElementById('workSec');
+        const restMin = document.getElementById('restMin');
+        const restSec = document.getElementById('restSec');
+        const inputSets = document.getElementById('inputSets');
+        const selectSound = document.getElementById('selectSound');
+        const inputVolume = document.getElementById('inputVolume');
+        const volVal = document.getElementById('volVal');
+        const modalSaveBtn = document.getElementById('modalSaveBtn');
+        const modalCancelBtn = document.getElementById('modalCancelBtn');
+
+        inputVolume.addEventListener('input', () => {
+            volVal.textContent = inputVolume.value;
+        });
+
+        function loadTimers() {
+            const saved = localStorage.getItem('tabata_multi_timers_v3');
+            if (saved) {
+                try {
+                    timers = JSON.parse(saved);
+                } catch(e) {
+                    timers = defaultTimers;
+                }
+            } else {
+                timers = defaultTimers;
+            }
+            renderTimerList();
+        }
+
+        function saveTimers() {
+            localStorage.setItem('tabata_multi_timers_v3', JSON.stringify(timers));
+        }
+
+        function renderTimerList() {
+            timerListEl.innerHTML = '';
+            timers.forEach(t => {
+                const card = document.createElement('div');
+                card.className = 'timer-card';
+                
+                const workMinF = Math.floor(t.work / 60);
+                const workSecF = t.work % 60;
+                const restSecF = t.rest % 60;
+
+                card.innerHTML = `
+                    <div class="timer-card-info" style="flex:1; cursor:pointer;">
+                        <h3>${escapeHtml(t.title)}</h3>
+                        <p>運動: ${workMinF > 0 ? workMinF+'分' : ''}${workSecF}秒 / 休憩: ${restSecF}秒 / ${t.sets}セット</p>
+                    </div>
+                    <div class="timer-card-actions">
+                        <button class="icon-btn edit" title="編集">✏️</button>
+                        <button class="icon-btn delete" title="削除">🗑️</button>
+                    </div>
+                `;
+
+                card.querySelector('.timer-card-info').addEventListener('click', () => {
+                    startTimerSession(t.id);
+                });
+
+                card.querySelector('.icon-btn.edit').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    openModal(t.id);
+                });
+
+                card.querySelector('.icon-btn.delete').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (timers.length <= 1) {
+                        alert('最後の1つは削除できません。');
+                        return;
+                    }
+                    if (confirm(`「${t.title}」を削除しますか？`)) {
+                        timers = timers.filter(item => item.id !== t.id);
+                        saveTimers();
+                        renderTimerList();
+                    }
+                });
+
+                timerListEl.appendChild(card);
+            });
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/[&'`<>"]/g, match => ({
+                '&': '&amp;',
+                "'": '&#x27;',
+                '`': '&#x60;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+            }[match]));
+        }
+
         function initAudio() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -306,45 +548,117 @@
             }
         }
 
-        // サウンド再生
+        // サウンド合成・再生エンジン（新しい金属・打撃音を追加）
         function playSound(type) {
-            if (config.sound === 'none') return;
+            if (!activeConfig || activeConfig.sound === 'none') return;
             initAudio();
             if (!audioCtx) return;
 
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-
+            const mode = activeConfig.sound;
+            const vol = (activeConfig.volume !== undefined ? activeConfig.volume : 50) / 100;
             const now = audioCtx.currentTime;
 
-            if (type === 'start') {
-                osc.frequency.setValueAtTime(587.33, now); // D5
-                osc.frequency.setValueAtTime(880, now + 0.15); // A5
-                gain.gain.setValueAtTime(0.15, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-                osc.start(now);
-                osc.stop(now + 0.4);
-            } else if (type === 'countdown') {
-                osc.frequency.setValueAtTime(440, now); // A4
-                gain.gain.setValueAtTime(0.1, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-                osc.start(now);
-                osc.stop(now + 0.1);
-            } else if (type === 'end' || type === 'finish') {
-                osc.frequency.setValueAtTime(440, now);
-                osc.frequency.setValueAtTime(554.37, now + 0.15);
-                osc.frequency.setValueAtTime(659.25, now + 0.3);
-                osc.frequency.setValueAtTime(880, now + 0.45);
-                gain.gain.setValueAtTime(0.2, now);
-                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
-                osc.start(now);
-                osc.stop(now + 0.8);
+            if (mode === 'metal') {
+                // メタルゴング：より硬質で金属的なカーンという響き (スクウェア波や高次倍音を強調)
+                const freqs = [784.00, 1174.66, 1567.98, 2349.32]; // G5, D6, G6, D7 近辺の金属的アタック
+                freqs.forEach((f, index) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+
+                    osc.type = (index === 0) ? 'triangle' : 'sine';
+                    osc.frequency.setValueAtTime(f, now);
+
+                    const attenuation = 1 / (index + 1);
+                    gain.gain.setValueAtTime(0.25 * vol * attenuation, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + (type === 'finish' ? 1.8 : 1.0));
+
+                    osc.start(now);
+                    osc.stop(now + (type === 'finish' ? 1.8 : 1.0));
+                });
+            } else if (mode === 'hit') {
+                // 金属打撃（コンッ！）：短く締まった硬い音
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                osc.type = 'square';
+                if (type === 'countdown') {
+                    osc.frequency.setValueAtTime(987.77, now); // B5
+                    gain.gain.setValueAtTime(0.12 * vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+                    osc.start(now);
+                    osc.stop(now + 0.06);
+                } else {
+                    osc.frequency.setValueAtTime(1174.66, now); // D6
+                    osc.frequency.setValueAtTime(1567.98, now + 0.05); // G6
+                    gain.gain.setValueAtTime(0.2 * vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                }
+            } else if (mode === 'soft') {
+                // ソフト音
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+
+                if (type === 'start') {
+                    osc.frequency.setValueAtTime(440, now);
+                    gain.gain.setValueAtTime(0.15 * vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+                    osc.start(now);
+                    osc.stop(now + 0.3);
+                } else if (type === 'countdown') {
+                    osc.frequency.setValueAtTime(330, now);
+                    gain.gain.setValueAtTime(0.1 * vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } else {
+                    osc.frequency.setValueAtTime(523.25, now);
+                    gain.gain.setValueAtTime(0.2 * vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                    osc.start(now);
+                    osc.stop(now + 0.6);
+                }
+            } else {
+                // 従来の電子音（beep）
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'start') {
+                    osc.frequency.setValueAtTime(587.33, now);
+                    osc.frequency.setValueAtTime(880, now + 0.15);
+                    gain.gain.setValueAtTime(0.15 * vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+                    osc.start(now);
+                    osc.stop(now + 0.4);
+                } else if (type === 'countdown') {
+                    osc.frequency.setValueAtTime(440, now);
+                    gain.gain.setValueAtTime(0.1 * vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } else if (type === 'end' || type === 'finish') {
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.setValueAtTime(554.37, now + 0.15);
+                    osc.frequency.setValueAtTime(659.25, now + 0.3);
+                    osc.frequency.setValueAtTime(880, now + 0.45);
+                    gain.gain.setValueAtTime(0.2 * vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+                    osc.start(now);
+                    osc.stop(now + 0.8);
+                }
             }
         }
 
-        // 画面スリープ防止 (Screen Wake Lock API)
         async function requestWakeLock() {
             if ('wakeLock' in navigator) {
                 try {
@@ -360,76 +674,44 @@
             }
         }
 
-        // 時間フォーマット (MM:SS)
         function formatTime(seconds) {
             const m = Math.floor(seconds / 60);
             const s = seconds % 60;
             return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
         }
 
-        // ローカルストレージから設定読み込み
-        function loadSettingsFromStorage() {
-            const saved = localStorage.getItem('tabata_config_v4');
-            if (saved) {
-                try {
-                    config = JSON.parse(saved);
-                } catch(e) {}
-            }
-            // フォームに反映
-            document.getElementById('prepMin').value = Math.floor(config.prep / 60);
-            document.getElementById('prepSec').value = config.prep % 60;
-            document.getElementById('workMin').value = Math.floor(config.work / 60);
-            document.getElementById('workSec').value = config.work % 60;
-            document.getElementById('restMin').value = Math.floor(config.rest / 60);
-            document.getElementById('restSec').value = config.rest % 60;
-            document.getElementById('inputSets').value = config.sets;
-            document.getElementById('selectSound').value = config.sound || 'beep';
+        function startTimerSession(id) {
+            currentTimerId = id;
+            activeConfig = timers.find(t => t.id === id);
+            if (!activeConfig) return;
 
+            listView.classList.remove('active');
+            timerView.classList.add('active');
             resetTimer();
         }
 
-        // ローカルストレージへ設定保存
-        function saveSettingsToStorage() {
-            const prepM = parseInt(document.getElementById('prepMin').value);
-            const prepS = parseInt(document.getElementById('prepSec').value);
-            const workM = parseInt(document.getElementById('workMin').value);
-            const workS = parseInt(document.getElementById('workSec').value);
-            const restM = parseInt(document.getElementById('restMin').value);
-            const restS = parseInt(document.getElementById('restSec').value);
-
-            config.prep = ((isNaN(prepM) ? 0 : prepM) * 60) + (isNaN(prepS) ? 0 : prepS);
-            config.work = ((isNaN(workM) ? 0 : workM) * 60) + (isNaN(workS) ? 20 : workS);
-            config.rest = ((isNaN(restM) ? 0 : restM) * 60) + (isNaN(restS) ? 10 : restS);
-            config.sets = parseInt(document.getElementById('inputSets').value) || 8;
-            config.sound = document.getElementById('selectSound').value;
-
-            localStorage.setItem('tabata_config_v4', JSON.stringify(config));
-            resetTimer();
-        }
-
-        // タイマーリセット
         function resetTimer() {
             stopTimer();
             releaseWakeLock();
             currentState = 'IDLE';
             currentSet = 1;
             
-            if (config.prep > 0) {
+            if (activeConfig.prep > 0) {
                 subState = 'PREP';
-                timeLeft = config.prep;
+                timeLeft = activeConfig.prep;
                 statusBadge.textContent = '準備中';
                 statusBadge.style.color = 'var(--accent-prep)';
                 document.body.style.backgroundColor = '#18120b';
             } else {
                 subState = 'WORK';
-                timeLeft = config.work;
+                timeLeft = activeConfig.work;
                 statusBadge.textContent = '運動中';
                 statusBadge.style.color = 'var(--accent-work)';
                 document.body.style.backgroundColor = '#0c192c';
             }
             
             timerDisplay.textContent = formatTime(timeLeft);
-            infoText.textContent = `セット ${currentSet} / ${config.sets}`;
+            infoText.textContent = `セット ${currentSet} / ${activeConfig.sets}`;
             btnAction.textContent = 'スタート';
             btnSettings.style.display = 'block';
         }
@@ -437,11 +719,12 @@
         function stopTimer() {
             clearInterval(timerInterval);
             timerInterval = null;
+            releaseWakeLock();
         }
 
-        // タイマーのカウントダウン処理
         function runInterval() {
             stopTimer();
+            requestWakeLock();
             let lastTick = performance.now();
 
             timerInterval = setInterval(() => {
@@ -457,7 +740,6 @@
                             playSound('countdown');
                         }
                     } else {
-                        // フェーズ切り替え
                         transitionNextPhase();
                     }
                     timerDisplay.textContent = formatTime(timeLeft);
@@ -465,24 +747,22 @@
             }, 100);
         }
 
-        // フェーズ移行
         function transitionNextPhase() {
             if (subState === 'PREP') {
                 subState = 'WORK';
-                timeLeft = config.work;
+                timeLeft = activeConfig.work;
                 statusBadge.textContent = '運動中';
                 statusBadge.style.color = 'var(--accent-work)';
                 document.body.style.backgroundColor = '#0c192c';
                 playSound('start');
             } else if (subState === 'WORK') {
-                if (currentSet >= config.sets) {
-                    // 全セット終了
+                if (currentSet >= activeConfig.sets) {
                     finishTimer();
                     return;
                 }
-                if (config.rest > 0) {
+                if (activeConfig.rest > 0) {
                     subState = 'REST';
-                    timeLeft = config.rest;
+                    timeLeft = activeConfig.rest;
                     statusBadge.textContent = '休憩中';
                     statusBadge.style.color = 'var(--accent-rest)';
                     document.body.style.backgroundColor = '#062014';
@@ -490,87 +770,151 @@
                 } else {
                     currentSet++;
                     subState = 'WORK';
-                    timeLeft = config.work;
+                    timeLeft = activeConfig.work;
                     statusBadge.textContent = '運動中';
                     statusBadge.style.color = 'var(--accent-work)';
                     document.body.style.backgroundColor = '#0c192c';
-                    infoText.textContent = `セット ${currentSet} / ${config.sets}`;
+                    infoText.textContent = `セット ${currentSet} / ${activeConfig.sets}`;
                     playSound('start');
                 }
             } else if (subState === 'REST') {
                 currentSet++;
                 subState = 'WORK';
-                timeLeft = config.work;
+                timeLeft = activeConfig.work;
                 statusBadge.textContent = '運動中';
                 statusBadge.style.color = 'var(--accent-work)';
                 document.body.style.backgroundColor = '#0c192c';
-                infoText.textContent = `セット ${currentSet} / ${config.sets}`;
+                infoText.textContent = `セット ${currentSet} / ${activeConfig.sets}`;
                 playSound('start');
             }
         }
 
-        // 完了
         function finishTimer() {
             stopTimer();
-            releaseWakeLock();
             currentState = 'FINISHED';
             statusBadge.textContent = '完了！';
             statusBadge.style.color = 'var(--accent-finish)';
             document.body.style.backgroundColor = '#1e112b';
             timerDisplay.textContent = '00:00';
-            infoText.textContent = `全 ${config.sets} セット完了`;
+            infoText.textContent = `全 ${activeConfig.sets} セット完了`;
             btnAction.textContent = 'リセット';
             btnSettings.style.display = 'block';
             playSound('finish');
         }
 
-        // アクションボタン（スタート / 一時停止 / 再開 / リセット）の挙動
         btnAction.addEventListener('click', () => {
             initAudio();
             if (currentState === 'IDLE') {
                 currentState = 'RUNNING';
                 btnSettings.style.display = 'none';
                 btnAction.textContent = '一時停止';
-                requestWakeLock();
                 playSound('start');
                 runInterval();
             } else if (currentState === 'RUNNING') {
                 currentState = 'PAUSED';
                 stopTimer();
-                releaseWakeLock();
                 btnAction.textContent = '再開';
                 btnSettings.style.display = 'block';
             } else if (currentState === 'PAUSED') {
                 currentState = 'RUNNING';
                 btnSettings.style.display = 'none';
                 btnAction.textContent = '一時停止';
-                requestWakeLock();
                 runInterval();
             } else if (currentState === 'FINISHED') {
                 resetTimer();
             }
         });
 
-        // 設定モーダル開閉
-        btnSettings.addEventListener('click', () => {
-            settingsModal.classList.add('active');
+        btnBackToList.addEventListener('click', () => {
+            stopTimer();
+            timerView.classList.remove('active');
+            listView.classList.add('active');
+            document.body.style.backgroundColor = 'var(--bg-color)';
+            renderTimerList();
         });
 
-        modalCloseBtn.addEventListener('click', () => {
-            saveSettingsToStorage();
+        let editingId = null;
+
+        function openModal(id = null) {
+            editingId = id;
+            if (id) {
+                modalTitle.textContent = 'タイマー設定編集';
+                const target = timers.find(t => t.id === id);
+                if (target) {
+                    inputTitle.value = target.title;
+                    prepMin.value = Math.floor(target.prep / 60);
+                    prepSec.value = target.prep % 60;
+                    workMin.value = Math.floor(target.work / 60);
+                    workSec.value = target.work % 60;
+                    restMin.value = Math.floor(target.rest / 60);
+                    restSec.value = target.rest % 60;
+                    inputSets.value = target.sets;
+                    selectSound.value = target.sound || 'beep';
+                    inputVolume.value = target.volume !== undefined ? target.volume : 50;
+                    volVal.textContent = inputVolume.value;
+                }
+            } else {
+                modalTitle.textContent = '新規タバタ作成';
+                inputTitle.value = '新しいタバタ';
+                prepMin.value = 0;
+                prepSec.value = 10;
+                workMin.value = 0;
+                workSec.value = 20;
+                restMin.value = 0;
+                restSec.value = 10;
+                inputSets.value = 8;
+                selectSound.value = 'metal';
+                inputVolume.value = 50;
+                volVal.textContent = '50';
+            }
+            settingsModal.classList.add('active');
+        }
+
+        btnAddTimer.addEventListener('click', () => openModal(null));
+        btnSettings.addEventListener('click', () => openModal(currentTimerId));
+
+        modalCancelBtn.addEventListener('click', () => {
             settingsModal.classList.remove('active');
         });
 
-        // モダールの外側タップで保存して閉じる
-        settingsModal.addEventListener('click', (e) => {
-            if (e.target === settingsModal) {
-                saveSettingsToStorage();
-                settingsModal.classList.remove('active');
+        modalSaveBtn.addEventListener('click', () => {
+            const pM = parseInt(prepMin.value);
+            const pS = parseInt(prepSec.value);
+            const wM = parseInt(workMin.value);
+            const wS = parseInt(workSec.value);
+            const rM = parseInt(restMin.value);
+            const rS = parseInt(restSec.value);
+
+            const newConfig = {
+                id: editingId ? editingId : 'timer_' + Date.now(),
+                title: inputTitle.value.trim() || '無題のタバタ',
+                prep: ((isNaN(pM) ? 0 : pM) * 60) + (isNaN(pS) ? 0 : pS),
+                work: ((isNaN(wM) ? 0 : wM) * 60) + (isNaN(wS) ? 20 : wS),
+                rest: ((isNaN(rM) ? 0 : rM) * 60) + (isNaN(rS) ? 10 : rS),
+                sets: parseInt(inputSets.value) || 8,
+                sound: selectSound.value,
+                volume: parseInt(inputVolume.value)
+            };
+
+            if (editingId) {
+                const index = timers.findIndex(t => t.id === editingId);
+                if (index !== -1) {
+                    timers[index] = newConfig;
+                }
+                if (currentTimerId === editingId) {
+                    activeConfig = newConfig;
+                    resetTimer();
+                }
+            } else {
+                timers.push(newConfig);
             }
+
+            saveTimers();
+            renderTimerList();
+            settingsModal.classList.remove('active');
         });
 
-        // 起動時に設定を読み込む
-        loadSettingsFromStorage();
+        loadTimers();
     </script>
 </body>
 </html>
