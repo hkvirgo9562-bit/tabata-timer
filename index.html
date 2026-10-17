@@ -294,6 +294,14 @@
             color: var(--text-secondary);
         }
 
+        .file-upload-section {
+            background: var(--bg-color);
+            border: 1px dashed #3f3f46;
+            padding: 12px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
         .modal-actions {
             display: flex;
             gap: 12px;
@@ -385,17 +393,28 @@
             <div class="setting-group">
                 <span class="setting-label">サウンド</span>
                 <select id="selectSound">
-                    <option value="beep">01</option>
-                    <option value="soft">02</option>
-                    <option value="metal">03</option>
-                    <option value="hit">04</option>
+                    <option value="metal">01</option>
+                    <option value="hit">02</option>
+                    <option value="whistle">03</option>
+                    <option value="pop">04</option>
+                    <option value="beep">05</option>
+                    <option value="soft">06</option>
+                    <option value="custom">登録音声ファイル使用</option>
                     <option value="none">無音</option>
                 </select>
             </div>
 
+            <!-- 自作音声ファイル選択用セクション -->
+            <div id="customAudioSection" class="setting-group" style="display: none;">
+                <span class="setting-label">音声ファイルをアップロード (mp3 / wav)</span>
+                <div class="file-upload-section">
+                    <input type="file" id="audioFileInput" accept="audio/*" style="font-size: 0.85rem; color: var(--text-color);">
+                </div>
+            </div>
+
             <div class="setting-group">
-                <span class="setting-label">ボリューム (音量: <span id="volVal">50</span>%)</span>
-                <input type="range" id="inputVolume" min="0" max="100" value="50" style="accent-color: var(--btn-primary);">
+                <span class="setting-label">ボリューム (音量ブースト: <span id="volVal">100</span>%) <small style="color:var(--accent-prep);">※最大200%</small></span>
+                <input type="range" id="inputVolume" min="10" max="200" value="100" style="accent-color: var(--btn-primary);">
             </div>
 
             <div class="modal-actions">
@@ -415,13 +434,15 @@
                 rest: 10,
                 sets: 8,
                 sound: 'metal',
-                volume: 50
+                volume: 120,
+                customAudio: null
             }
         ];
 
         let timers = [];
         let currentTimerId = null;
         let activeConfig = null;
+        let customAudioBuffer = null; // アップロードされた音声バッファ
 
         let currentState = 'IDLE'; 
         let subState = 'PREP';     
@@ -454,6 +475,8 @@
         const restSec = document.getElementById('restSec');
         const inputSets = document.getElementById('inputSets');
         const selectSound = document.getElementById('selectSound');
+        const customAudioSection = document.getElementById('customAudioSection');
+        const audioFileInput = document.getElementById('audioFileInput');
         const inputVolume = document.getElementById('inputVolume');
         const volVal = document.getElementById('volVal');
         const modalSaveBtn = document.getElementById('modalSaveBtn');
@@ -463,8 +486,16 @@
             volVal.textContent = inputVolume.value;
         });
 
+        selectSound.addEventListener('change', () => {
+            if (selectSound.value === 'custom') {
+                customAudioSection.style.display = 'flex';
+            } else {
+                customAudioSection.style.display = 'none';
+            }
+        });
+
         function loadTimers() {
-            const saved = localStorage.getItem('tabata_multi_timers_v3');
+            const saved = localStorage.getItem('tabata_multi_timers_v4');
             if (saved) {
                 try {
                     timers = JSON.parse(saved);
@@ -478,7 +509,7 @@
         }
 
         function saveTimers() {
-            localStorage.setItem('tabata_multi_timers_v3', JSON.stringify(timers));
+            localStorage.setItem('tabata_multi_timers_v4', JSON.stringify(timers));
         }
 
         function renderTimerList() {
@@ -548,101 +579,155 @@
             }
         }
 
-        // サウンド合成・再生エンジン（新しい金属・打撃音を追加）
+        // 拡張サウンド合成＆音量ブースト対応エンジン
         function playSound(type) {
             if (!activeConfig || activeConfig.sound === 'none') return;
             initAudio();
             if (!audioCtx) return;
 
             const mode = activeConfig.sound;
-            const vol = (activeConfig.volume !== undefined ? activeConfig.volume : 50) / 100;
+            // 最大200%（2.0倍）まで増幅できるように設定
+            const vol = (activeConfig.volume !== undefined ? activeConfig.volume : 100) / 100;
             const now = audioCtx.currentTime;
 
+            // 共通ゲイン（ブースト対応）
+            const masterGain = audioCtx.createGain();
+            masterGain.gain.setValueAtTime(vol, now);
+            masterGain.connect(audioCtx.destination);
+
+            if (mode === 'custom' && activeConfig.customAudio) {
+                // アップロードされた音声ファイルの再生
+                try {
+                    const base64Data = activeConfig.customAudio.split(',')[1];
+                    const binaryString = atob(base64Data);
+                    const len = binaryString.length;
+                    const bytes = new Uint8Array(len);
+                    for (let i = 0; i < len; i++) {
+                        bytes[i] = binaryString.charCodeAt(i);
+                    }
+                    audioCtx.decodeAudioData(bytes.buffer, (buffer) => {
+                        const source = audioCtx.createBufferSource();
+                        source.buffer = buffer;
+                        source.connect(masterGain);
+                        source.start(0);
+                    });
+                } catch(e) {}
+                return;
+            }
+
             if (mode === 'metal') {
-                // メタルゴング：より硬質で金属的なカーンという響き (スクウェア波や高次倍音を強調)
-                const freqs = [784.00, 1174.66, 1567.98, 2349.32]; // G5, D6, G6, D7 近辺の金属的アタック
+                const freqs = [784.00, 1174.66, 1567.98, 2349.32];
                 freqs.forEach((f, index) => {
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
                     osc.connect(gain);
-                    gain.connect(audioCtx.destination);
+                    gain.connect(masterGain);
 
                     osc.type = (index === 0) ? 'triangle' : 'sine';
                     osc.frequency.setValueAtTime(f, now);
 
                     const attenuation = 1 / (index + 1);
-                    gain.gain.setValueAtTime(0.25 * vol * attenuation, now);
+                    gain.gain.setValueAtTime(0.4 * attenuation, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + (type === 'finish' ? 1.8 : 1.0));
 
                     osc.start(now);
                     osc.stop(now + (type === 'finish' ? 1.8 : 1.0));
                 });
             } else if (mode === 'hit') {
-                // 金属打撃（コンッ！）：短く締まった硬い音
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(masterGain);
 
                 osc.type = 'square';
                 if (type === 'countdown') {
-                    osc.frequency.setValueAtTime(987.77, now); // B5
-                    gain.gain.setValueAtTime(0.12 * vol, now);
+                    osc.frequency.setValueAtTime(987.77, now);
+                    gain.gain.setValueAtTime(0.2, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
                     osc.start(now);
                     osc.stop(now + 0.06);
                 } else {
-                    osc.frequency.setValueAtTime(1174.66, now); // D6
-                    osc.frequency.setValueAtTime(1567.98, now + 0.05); // G6
-                    gain.gain.setValueAtTime(0.2 * vol, now);
+                    osc.frequency.setValueAtTime(1174.66, now);
+                    osc.frequency.setValueAtTime(1567.98, now + 0.05);
+                    gain.gain.setValueAtTime(0.3, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
                     osc.start(now);
                     osc.stop(now + 0.25);
                 }
-            } else if (mode === 'soft') {
-                // ソフト音
+            } else if (mode === 'whistle') {
+                // スポーツ風ホイッスル（ピィーッ！）
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(masterGain);
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(2400, now);
+                osc.frequency.linearRampToValueAtTime(2800, now + 0.15);
+                osc.frequency.linearRampToValueAtTime(2400, now + 0.3);
+
+                gain.gain.setValueAtTime(0.35, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + (type === 'finish' ? 0.8 : 0.4));
+                osc.start(now);
+                osc.stop(now + (type === 'finish' ? 0.8 : 0.4));
+            } else if (mode === 'pop') {
+                // ポップ音
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(masterGain);
+
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(600, now);
+                osc.frequency.exponentialRampToValueAtTime(200, now + 0.08);
+
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                osc.start(now);
+                osc.stop(now + 0.08);
+            } else if (mode === 'soft') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(masterGain);
                 osc.type = 'sine';
 
                 if (type === 'start') {
                     osc.frequency.setValueAtTime(440, now);
-                    gain.gain.setValueAtTime(0.15 * vol, now);
+                    gain.gain.setValueAtTime(0.3, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
                     osc.start(now);
                     osc.stop(now + 0.3);
                 } else if (type === 'countdown') {
                     osc.frequency.setValueAtTime(330, now);
-                    gain.gain.setValueAtTime(0.1 * vol, now);
+                    gain.gain.setValueAtTime(0.2, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
                     osc.start(now);
                     osc.stop(now + 0.1);
                 } else {
                     osc.frequency.setValueAtTime(523.25, now);
-                    gain.gain.setValueAtTime(0.2 * vol, now);
+                    gain.gain.setValueAtTime(0.4, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
                     osc.start(now);
                     osc.stop(now + 0.6);
                 }
             } else {
-                // 従来の電子音（beep）
+                // 電子音（beep）
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.connect(gain);
-                gain.connect(audioCtx.destination);
+                gain.connect(masterGain);
 
                 if (type === 'start') {
                     osc.frequency.setValueAtTime(587.33, now);
                     osc.frequency.setValueAtTime(880, now + 0.15);
-                    gain.gain.setValueAtTime(0.15 * vol, now);
+                    gain.gain.setValueAtTime(0.3, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
                     osc.start(now);
                     osc.stop(now + 0.4);
                 } else if (type === 'countdown') {
                     osc.frequency.setValueAtTime(440, now);
-                    gain.gain.setValueAtTime(0.1 * vol, now);
+                    gain.gain.setValueAtTime(0.2, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
                     osc.start(now);
                     osc.stop(now + 0.1);
@@ -651,7 +736,7 @@
                     osc.frequency.setValueAtTime(554.37, now + 0.15);
                     osc.frequency.setValueAtTime(659.25, now + 0.3);
                     osc.frequency.setValueAtTime(880, now + 0.45);
-                    gain.gain.setValueAtTime(0.2 * vol, now);
+                    gain.gain.setValueAtTime(0.4, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
                     osc.start(now);
                     osc.stop(now + 0.8);
@@ -834,9 +919,11 @@
         });
 
         let editingId = null;
+        let tempCustomAudio = null;
 
         function openModal(id = null) {
             editingId = id;
+            tempCustomAudio = null;
             if (id) {
                 modalTitle.textContent = 'タイマー設定編集';
                 const target = timers.find(t => t.id === id);
@@ -849,9 +936,16 @@
                     restMin.value = Math.floor(target.rest / 60);
                     restSec.value = target.rest % 60;
                     inputSets.value = target.sets;
-                    selectSound.value = target.sound || 'beep';
-                    inputVolume.value = target.volume !== undefined ? target.volume : 50;
+                    selectSound.value = target.sound || 'metal';
+                    inputVolume.value = target.volume !== undefined ? target.volume : 120;
                     volVal.textContent = inputVolume.value;
+                    tempCustomAudio = target.customAudio || null;
+
+                    if (selectSound.value === 'custom') {
+                        customAudioSection.style.display = 'flex';
+                    } else {
+                        customAudioSection.style.display = 'none';
+                    }
                 }
             } else {
                 modalTitle.textContent = '新規タバタ作成';
@@ -864,11 +958,24 @@
                 restSec.value = 10;
                 inputSets.value = 8;
                 selectSound.value = 'metal';
-                inputVolume.value = 50;
-                volVal.textContent = '50';
+                inputVolume.value = 120;
+                volVal.textContent = '120';
+                customAudioSection.style.display = 'none';
             }
+            audioFileInput.value = '';
             settingsModal.classList.add('active');
         }
+
+        audioFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(uploadEvent) {
+                    tempCustomAudio = uploadEvent.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
 
         btnAddTimer.addEventListener('click', () => openModal(null));
         btnSettings.addEventListener('click', () => openModal(currentTimerId));
@@ -885,6 +992,12 @@
             const rM = parseInt(restMin.value);
             const rS = parseInt(restSec.value);
 
+            let existingCustom = null;
+            if (editingId) {
+                const existing = timers.find(t => t.id === editingId);
+                if (existing) existingCustom = existing.customAudio;
+            }
+
             const newConfig = {
                 id: editingId ? editingId : 'timer_' + Date.now(),
                 title: inputTitle.value.trim() || '無題のタバタ',
@@ -893,7 +1006,8 @@
                 rest: ((isNaN(rM) ? 0 : rM) * 60) + (isNaN(rS) ? 10 : rS),
                 sets: parseInt(inputSets.value) || 8,
                 sound: selectSound.value,
-                volume: parseInt(inputVolume.value)
+                volume: parseInt(inputVolume.value),
+                customAudio: tempCustomAudio !== null ? tempCustomAudio : existingCustom
             };
 
             if (editingId) {
