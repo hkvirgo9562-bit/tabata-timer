@@ -53,7 +53,6 @@
             display: flex;
         }
 
-        /* --- リストビュー画面 --- */
         .list-header {
             display: flex;
             justify-content: space-between;
@@ -131,7 +130,6 @@
             color: var(--danger);
         }
 
-        /* --- タイマー実行画面 --- */
         .timer-container {
             flex: 1;
             display: flex;
@@ -219,7 +217,6 @@
             background-color: var(--btn-primary-hover);
         }
 
-        /* --- 設定モーダル --- */
         .modal {
             position: fixed;
             top: 0;
@@ -324,18 +321,14 @@
 </head>
 <body>
 
-    <!-- VIEW 1: タバタメニュー一覧 -->
     <div id="listView" class="view active">
         <div class="list-header">
             <h1 class="app-title">タバタタイマー一覧</h1>
             <button id="btnAddTimer" class="btn-add">＋ 新規作成</button>
         </div>
-        <div id="timerList" class="timer-list">
-            <!-- JavaScriptで動的にカードが生成されます -->
-        </div>
+        <div id="timerList" class="timer-list"></div>
     </div>
 
-    <!-- VIEW 2: タイマー実行画面 -->
     <div id="timerView" class="view">
         <button id="btnBackToList" class="back-btn">← 一覧に戻る</button>
         
@@ -351,7 +344,6 @@
         </div>
     </div>
 
-    <!-- 設定・編集モーダル -->
     <div id="settingsModal" class="modal">
         <div class="modal-content">
             <div id="modalTitle" class="modal-title">タイマー設定</div>
@@ -393,10 +385,11 @@
             <div class="setting-group">
                 <span class="setting-label">サウンド</span>
                 <select id="selectSound">
-                    <option value="beep">電子音 (ビープ)</option>
-                    <option value="bell">鐘・ゴング (カーン！)</option>
-                    <option value="sharp">シャープ (高音ピピッ)</option>
-                    <option value="none">サイレント (鳴らさない)</option>
+                    <option value="beep">01</option>
+                    <option value="soft">02</option>
+                    <option value="metal">03</option>
+                    <option value="hit">04</option>
+                    <option value="none">無音</option>
                 </select>
             </div>
 
@@ -416,12 +409,12 @@
         const defaultTimers = [
             {
                 id: 'default_1',
-                title: 'スタンダードタバタ',
+                title: 'タバタタイマー01',
                 prep: 10,
                 work: 20,
                 rest: 10,
                 sets: 8,
-                sound: 'beep',
+                sound: 'metal',
                 volume: 50
             }
         ];
@@ -471,7 +464,7 @@
         });
 
         function loadTimers() {
-            const saved = localStorage.getItem('tabata_multi_timers_v2');
+            const saved = localStorage.getItem('tabata_multi_timers_v3');
             if (saved) {
                 try {
                     timers = JSON.parse(saved);
@@ -485,7 +478,7 @@
         }
 
         function saveTimers() {
-            localStorage.setItem('tabata_multi_timers_v2', JSON.stringify(timers));
+            localStorage.setItem('tabata_multi_timers_v3', JSON.stringify(timers));
         }
 
         function renderTimerList() {
@@ -555,7 +548,7 @@
             }
         }
 
-        // サウンド合成・再生エンジン
+        // サウンド合成・再生エンジン（新しい金属・打撃音を追加）
         function playSound(type) {
             if (!activeConfig || activeConfig.sound === 'none') return;
             initAudio();
@@ -565,27 +558,27 @@
             const vol = (activeConfig.volume !== undefined ? activeConfig.volume : 50) / 100;
             const now = audioCtx.currentTime;
 
-            if (mode === 'bell') {
-                // カーンと響く鐘（ゴング）音：複数の倍音を重ねる
-                const freqs = [523.25, 659.25, 783.99, 1046.50]; // C5, E5, G5, C6
+            if (mode === 'metal') {
+                // メタルゴング：より硬質で金属的なカーンという響き (スクウェア波や高次倍音を強調)
+                const freqs = [784.00, 1174.66, 1567.98, 2349.32]; // G5, D6, G6, D7 近辺の金属的アタック
                 freqs.forEach((f, index) => {
                     const osc = audioCtx.createOscillator();
                     const gain = audioCtx.createGain();
                     osc.connect(gain);
                     gain.connect(audioCtx.destination);
 
-                    osc.type = 'sine';
+                    osc.type = (index === 0) ? 'triangle' : 'sine';
                     osc.frequency.setValueAtTime(f, now);
 
                     const attenuation = 1 / (index + 1);
-                    gain.gain.setValueAtTime(0.3 * vol * attenuation, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + (type === 'finish' ? 2.0 : 1.2));
+                    gain.gain.setValueAtTime(0.25 * vol * attenuation, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + (type === 'finish' ? 1.8 : 1.0));
 
                     osc.start(now);
-                    osc.stop(now + (type === 'finish' ? 2.0 : 1.2));
+                    osc.stop(now + (type === 'finish' ? 1.8 : 1.0));
                 });
-            } else if (mode === 'sharp') {
-                // シャープな高音（ピピッ）
+            } else if (mode === 'hit') {
+                // 金属打撃（コンッ！）：短く締まった硬い音
                 const osc = audioCtx.createOscillator();
                 const gain = audioCtx.createGain();
                 osc.connect(gain);
@@ -593,18 +586,45 @@
 
                 osc.type = 'square';
                 if (type === 'countdown') {
-                    osc.frequency.setValueAtTime(880, now);
-                    gain.gain.setValueAtTime(0.1 * vol, now);
-                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                    osc.frequency.setValueAtTime(987.77, now); // B5
+                    gain.gain.setValueAtTime(0.12 * vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
                     osc.start(now);
-                    osc.stop(now + 0.08);
+                    osc.stop(now + 0.06);
                 } else {
-                    osc.frequency.setValueAtTime(1046.50, now);
-                    osc.frequency.setValueAtTime(1318.51, now + 0.1);
+                    osc.frequency.setValueAtTime(1174.66, now); // D6
+                    osc.frequency.setValueAtTime(1567.98, now + 0.05); // G6
+                    gain.gain.setValueAtTime(0.2 * vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                    osc.start(now);
+                    osc.stop(now + 0.25);
+                }
+            } else if (mode === 'soft') {
+                // ソフト音
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.type = 'sine';
+
+                if (type === 'start') {
+                    osc.frequency.setValueAtTime(440, now);
                     gain.gain.setValueAtTime(0.15 * vol, now);
                     gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
                     osc.start(now);
                     osc.stop(now + 0.3);
+                } else if (type === 'countdown') {
+                    osc.frequency.setValueAtTime(330, now);
+                    gain.gain.setValueAtTime(0.1 * vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                    osc.start(now);
+                    osc.stop(now + 0.1);
+                } else {
+                    osc.frequency.setValueAtTime(523.25, now);
+                    gain.gain.setValueAtTime(0.2 * vol, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
+                    osc.start(now);
+                    osc.stop(now + 0.6);
                 }
             } else {
                 // 従来の電子音（beep）
@@ -843,7 +863,7 @@
                 restMin.value = 0;
                 restSec.value = 10;
                 inputSets.value = 8;
-                selectSound.value = 'bell'; // 新規は鐘の音をデフォルトにしてもお洒落です
+                selectSound.value = 'metal';
                 inputVolume.value = 50;
                 volVal.textContent = '50';
             }
